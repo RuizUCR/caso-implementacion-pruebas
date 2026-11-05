@@ -17,6 +17,6 @@ class Docente extends Model
 
     public function grupos(): BelongsToMany
     {
-        return $this->belongsToMany(Grupo::class, 'docente_grupo');
+        return $this->belongsToMany(Grupo::class, 'grupo_docente');
     }
 }

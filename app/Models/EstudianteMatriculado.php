@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Relations\Pivot;
 
 class EstudianteMatriculado extends Pivot
 {
-    protected $table = 'estudiante_matriculado';
+    protected $table = 'estudiantes_matriculados';
 
     public $incrementing = true;
 
