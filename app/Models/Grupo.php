@@ -13,15 +13,42 @@ class Grupo extends Model
 {
     use HasFactory;
 
-    public const MIN_DOCENTES = 1;
-    public const MAX_DOCENTES = 2;
-    public const MIN_ESTUDIANTES = 15;
-    public const NOTA_MINIMA = 0;
-    public const NOTA_MAXIMA = 10;
+    // Reglas de negocio como métodos (no constantes) para que el driver de
+    // cobertura las trate como código ejecutable y se puedan mutar y probar.
+    private static function minDocentes(): int
+    {
+        return 1;
+    }
 
-    protected $fillable = ['curso_id', 'numeroCiclo', 'ano', 'numeroGrupo', 'abierto'];
+    private static function maxDocentes(): int
+    {
+        return 2;
+    }
 
-    protected $casts = ['abierto' => 'boolean'];
+    private static function minEstudiantes(): int
+    {
+        return 15;
+    }
+
+    private static function notaMinima(): int
+    {
+        return 0;
+    }
+
+    private static function notaMaxima(): int
+    {
+        return 10;
+    }
+
+    public function getFillable(): array
+    {
+        return ['curso_id', 'numeroCiclo', 'ano', 'numeroGrupo', 'abierto'];
+    }
+
+    protected function casts(): array
+    {
+        return ['abierto' => 'boolean'];
+    }
 
     public function curso(): BelongsTo
     {
@@ -43,8 +70,8 @@ class Grupo extends Model
     // RN-02: un grupo admite como máximo 2 docentes
     public function asignarDocente(Docente $docente): void
     {
-        if ($this->docentes()->count() >= self::MAX_DOCENTES) {
-            throw new DomainException('Un grupo admite como máximo ' . self::MAX_DOCENTES . ' docentes.');
+        if ($this->docentes()->count() >= self::maxDocentes()) {
+            throw new DomainException('Un grupo admite como máximo ' . self::maxDocentes() . ' docentes.');
         }
 
         $this->docentes()->attach($docente->id);
@@ -53,8 +80,8 @@ class Grupo extends Model
     // RN-02 (mínimo 1 docente) y RN-05 (mínimo 15 estudiantes)
     public function puedeAbrirse(): bool
     {
-        return $this->docentes()->count() >= self::MIN_DOCENTES
-            && $this->estudiantes()->count() >= self::MIN_ESTUDIANTES;
+        return $this->docentes()->count() >= self::minDocentes()
+            && $this->estudiantes()->count() >= self::minEstudiantes();
     }
 
     public function abrir(): void
@@ -69,7 +96,7 @@ class Grupo extends Model
     // RN-04 y RN-06: la nota va de 0 a 10
     public function registrarNota(Estudiante $estudiante, float $nota): void
     {
-        if ($nota < self::NOTA_MINIMA || $nota > self::NOTA_MAXIMA) {
+        if ($nota < self::notaMinima() || $nota > self::notaMaxima()) {
             throw new InvalidArgumentException('La nota debe estar entre 0 y 10.');
         }
 
