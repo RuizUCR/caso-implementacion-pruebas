@@ -1,0 +1,39 @@
+name: mutation
+
+on:
+  push:
+  workflow_dispatch:
+    inputs:
+      opciones:
+        description: 'Opciones de Pest (ej. --mutate o --mutate --min=80)'
+        required: false
+        default: '--mutate'
+
+jobs:
+  mutation:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Configurar PHP con PCOV
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: mbstring, pdo_sqlite, sqlite3
+          tools: composer:v2
+          coverage: pcov
+
+      - name: Preparar el entorno
+        run: |
+          cp .env.example .env
+          composer install --no-interaction --prefer-dist --no-progress
+          php artisan key:generate
+
+      - name: Pruebas de mutación
+        env:
+          OPCIONES: ${{ inputs.opciones }}
+        run: |
+          php -m | grep -i pcov
+          ./vendor/bin/pest ${OPCIONES:---mutate}
