@@ -160,3 +160,84 @@ test('CP-13 un estudiante no se matricula dos veces en el mismo grupo', function
         ->where('estudiante_id', $estudiante->id)
         ->count())->toBe(1);
 });
+function matricularEstudiantes(Grupo $grupo, int $cantidad): void
+{
+    $consejero = Docente::factory()->create();
+    $estudiantes = Estudiante::factory()->count($cantidad)->create(['consejero_id' => $consejero->id]);
+    $grupo->estudiantes()->attach($estudiantes->pluck('id')->all());
+}
+
+test('C3 asignarDocente asocia dos docentes al grupo', function () {
+    $grupo = crearGrupo01();
+
+    $grupo->asignarDocente(crearDocente(1001));
+    $grupo->asignarDocente(crearDocente(1002));
+
+    expect($grupo->fresh()->docentes)->toHaveCount(2);
+    $this->assertDatabaseCount('grupo_docente', 2);
+});
+
+test('C3 asignarDocente rechaza un tercer docente con su mensaje', function () {
+    $grupo = crearGrupo01();
+    $grupo->asignarDocente(crearDocente(1001));
+    $grupo->asignarDocente(crearDocente(1002));
+    $tercero = crearDocente(1003);
+
+    expect(fn () => $grupo->asignarDocente($tercero))
+        ->toThrow(DomainException::class, 'Un grupo admite como máximo 2 docentes.');
+
+    expect($grupo->fresh()->docentes)->toHaveCount(2);
+    $this->assertDatabaseMissing('grupo_docente', ['docente_id' => $tercero->id]);
+});
+
+test('C3 un grupo con 1 docente y 15 estudiantes se abre y queda guardado', function () {
+    $grupo = crearGrupo01();
+    $grupo->asignarDocente(crearDocente(1001));
+    matricularEstudiantes($grupo, 15);
+
+    expect($grupo->puedeAbrirse())->toBeTrue();
+
+    $grupo->abrir();
+
+    expect($grupo->fresh()->abierto)->toBeTrue();
+    $this->assertDatabaseHas('grupos', ['id' => $grupo->id, 'abierto' => true]);
+});
+
+test('C3 un grupo con 1 docente y 14 estudiantes no puede abrirse', function () {
+    $grupo = crearGrupo01();
+    $grupo->asignarDocente(crearDocente(1001));
+    matricularEstudiantes($grupo, 14);
+
+    expect($grupo->puedeAbrirse())->toBeFalse();
+    expect(fn () => $grupo->abrir())
+        ->toThrow(DomainException::class, 'El grupo no cumple los requisitos para abrirse.');
+    expect($grupo->fresh()->abierto)->toBeFalse();
+});
+
+test('C3 registrarNota acepta los límites 0 y 10', function (float $nota) {
+    $grupo = crearGrupo01();
+    $estudiante = crearEstudianteC12345(crearDocente(1001));
+    $grupo->estudiantes()->attach($estudiante->id);
+
+    $grupo->registrarNota($estudiante, $nota);
+
+    expect(matriculaDe($grupo, $estudiante)->nota)->toBe($nota);
+})->with([0, 10]);
+
+test('C3 el grupo guarda todos sus atributos asignados en masa', function () {
+    $curso = Curso::factory()->create();
+
+    $grupo = Grupo::create([
+        'curso_id' => $curso->id,
+        'numeroCiclo' => 2,
+        'ano' => 2026,
+        'numeroGrupo' => 3,
+        'abierto' => true,
+    ])->fresh();
+
+    expect($grupo->curso_id)->toBe($curso->id);
+    expect($grupo->numeroCiclo)->toBe(2);
+    expect($grupo->ano)->toBe(2026);
+    expect($grupo->numeroGrupo)->toBe(3);
+    expect($grupo->abierto)->toBeTrue();
+});
